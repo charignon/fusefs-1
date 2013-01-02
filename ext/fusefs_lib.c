@@ -4,8 +4,8 @@
  * a Rubyish way.
  */
 
-/* #define DEBUG /* */
 
+/* #define DEBUG /* */
 #define FUSE_USE_VERSION 26
 #define _FILE_OFFSET_BITS 64
 
@@ -22,6 +22,8 @@
 #include <stdarg.h>
 #endif
 
+char *rb_str2cstr _((VALUE,long*));
+#define STR2CSTR(x) rb_str2cstr((VALUE)(x),0)
 #include "fusefs_fuse.h"
 
 /* init_time
@@ -452,7 +454,7 @@ rf_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     if (TYPE(cur_entry) != T_STRING)
       continue;
 
-    filler(buf,STR2CSTR(cur_entry),NULL,0);
+    filler(buf,StringValuePtr(cur_entry),NULL,0);
   }
   return 0;
 }
@@ -660,7 +662,10 @@ rf_open(const char *path, struct fuse_file_info *fi) {
     /* We have the body, now save it the entire contents to our
      * opened_file lists. */
     newfile = ALLOC(opened_file);
-    value = rb_str2cstr(body,&newfile->size);
+    VALUE s = StringValue(body);
+    value = RSTRING_PTR(body);
+    newfile->size = RSTRING_LEN(body);
+
     newfile->value = ALLOC_N(char,(newfile->size)+1);
     memcpy(newfile->value,value,newfile->size);
     newfile->value[newfile->size] = '\0';
@@ -715,7 +720,9 @@ rf_open(const char *path, struct fuse_file_info *fi) {
       /* We have the body, now save it the entire contents to our
        * opened_file lists. */
       newfile = ALLOC(opened_file);
-      value = rb_str2cstr(body,&newfile->size);
+      VALUE s = StringValue(body);
+      value = RSTRING_PTR(body);
+      newfile->size = RSTRING_LEN(body);
       newfile->value = ALLOC_N(char,(newfile->size)+1);
       memcpy(newfile->value,value,newfile->size);
       newfile->writesize = newfile->size+1;
@@ -1074,8 +1081,9 @@ rf_truncate(const char *path, off_t offset) {
       rf_call(path,id_write_to,newstr);
     } else {
       long size;
-      char *str = rb_str2cstr(body,&size);
-
+      VALUE s = StringValue(body);
+      char *str = RSTRING_PTR(body);
+      size = RSTRING_LEN(body);
       /* Just in case offset is bigger than the file. */
       if (offset >= size) return 0;
 
@@ -1253,7 +1261,7 @@ rf_read(const char *path, char *buf, size_t size, off_t offset,
       return 0;
     if (TYPE(ret) != T_STRING)
       return 0;
-    memcpy(buf, RSTRING_PTR(ret), RSTRING_LEN(ret));
+    memcpy(buf, RSTRING_LEN(ret), RSTRING_LEN(ret));
     return RSTRING_LEN(ret);
   }
 
@@ -1390,7 +1398,7 @@ rf_mount_to(int argc, VALUE *argv, VALUE self) {
   }
 
   rb_iv_set(cFuseFS,"@mountpoint",mountpoint);
-  fusefs_setup(STR2CSTR(mountpoint), &rf_oper, opts);
+  fusefs_setup(StringValuePtr(mountpoint), &rf_oper, opts);
   return Qtrue;
 }
 
