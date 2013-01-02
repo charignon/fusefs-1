@@ -15,7 +15,7 @@ Requirements
 ------------
 
   * FUSE (http://fuse.sourceforge.org)
-  * Ruby (>= 1.8)
+  * Ruby (>= 1.9)
  (* C compiler)
 
 
